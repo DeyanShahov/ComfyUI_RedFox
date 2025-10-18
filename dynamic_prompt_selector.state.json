@@ -1,0 +1,32 @@
+{
+    "default": {
+        "collection": [
+            "Nami, One Piece",
+            "Asuna ( Sao ), Sword art online",
+            "Tifa Lockhart (FF14), Final Fantasy",
+            "Shihouin Yoruichi, Bleach",
+            "Inoue Orihime, Bleach",
+            "Kuchiki Rukia, Bleach",
+            "Tsunade ( naruto ), Naruto (series)",
+            "Hyuuga Hinata, Naruto ( series)",
+            "Sakura Haruno, Naruto ( series)",
+            "Ino, Naruto ( series)",
+            "Nico Robin, One pice",
+            "Boa Hancock, One pice",
+            "Rias Gremory, High school dxd",
+            "2B, (Nier automata), nier(series)",
+            "Android 18, Dragon ball",
+            "Aqua (konosuba), Kono subarashii sekai ni shukufuku wo",
+            "Megumin (konosuba), Kono subarashii sekai ni shukufuku wo",
+            "Hestia, (Danmachi), Dungeon ni deai wo motomeru no wa machigatteiru darou ka",
+            "Uraraka Ochako, Boku no hero academia",
+            "Tatsumaki, One-punch man",
+            "Fubuki, One-punch man",
+            "Erza Scarlet, Fairy Tail",
+            "Lucy Heartfilia, Fairy Tail"
+        ],
+        "initialized": true,
+        "ping_pong_direction": 1,
+        "current_index": 3
+    }
+}
