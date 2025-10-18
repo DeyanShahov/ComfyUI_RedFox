@@ -1,39 +1,47 @@
 # Dynamic Prompt Selector for ComfyUI
 
-A custom node for ComfyUI that allows you to dynamically select parts from a large text prompt split by delimiters. The node supports various selection behaviors and persists its state across ComfyUI restarts.
+A custom node for ComfyUI that allows you to dynamically select parts from large text prompts split by delimiters. The node supports 5 independent tabs (each like a mini-prompt selector), various selection behaviors, and persists state across ComfyUI restarts.
 
 ## Features
 
-- **Text Splitting**: Automatically splits large prompt text into parts using a configurable delimiter.
-- **Multiple Behaviors**: Supports fixed index, increment, decrement, random, and ping-pong selection modes.
-- **State Persistence**: Saves node state to a JSON file so selections continue correctly after ComfyUI restart.
-- **Multi-instance Support**: Each node instance can have its own state using the `node_id` parameter.
-- **Dynamic Outputs**: Provides the current selected part, index, and total count.
+- **5 Independent Tabs**: Each tab can have its own prompt text, delimiter, behavior, and settings, allowing multiple prompt selections in one node.
+- **Text Splitting**: Automatically splits text into parts using configurable delimiters.
+- **Multiple Behaviors**: Supports fixed index, increment, decrement, random, and ping-pong selection modes per tab.
+- **State Persistence**: Saves each tab's state to a JSON file so selections continue correctly after ComfyUI restart.
+- **Multi-instance Support**: Each tab can have its own state based on the `node_id_base` setting.
+- **15 Outputs**: Provides selected part, index, and total count for each of the 5 tabs.
 
 ## Nodes
 
 ### Dynamic Prompt Selector
 
-Splits a multiline text prompt into parts and selects one based on the chosen behavior.
+Contains 5 independent tabbed selectors, each splitting text and selecting parts based on configured behavior.
 
 #### Inputs
 
-- **prompt_text** (STRING, multiline): The full text prompt to split. Parts are separated by the delimiter.
-- **delimiter** (STRING, default: "|"): The character or string used to split the prompt into parts.
-- **behavior** (MENU): Selection mode:
+- **node_id_base** (STRING, default: "default"): Base state ID for this node. Tabs will get unique IDs like "{node_id_base}_tab1", etc.
+
+For each tab (1-5):
+
+- **prompt_text_tab[X]** (STRING, multiline): The full text prompt for this tab. Parts separated by delimiter.
+- **delimiter_tab[X]** (STRING, default: "|"): Delimiter to split text for this tab.
+- **behavior_tab[X]** (MENU): Selection mode for this tab:
   - `fix`: Always uses the start_index value
   - `increment`: Increases index by 1 each run (wraps around)
   - `decrement`: Decreases index by 1 each run (wraps around)
   - `random`: Selects random index each run
   - `ping-pong`: Goes back and forth between index 0 and max (for lists > 1 item)
-- **start_index** (INT, default: 0, min: 0): Initial index to use when behavior allows
-- **node_id** (STRING, default: "default"): Unique identifier for saving/loading state. Use different IDs for multiple instances.
+- **start_index_tab[X]** (INT, default: 0, min: 0): Initial index for this tab
 
 #### Outputs
 
-- **current_prompt_part** (STRING): The selected text part from the split prompt
-- **current_index** (INT): The 0-based index of the current part
-- **total_parts** (INT): Total number of parts in the split text
+For each tab (1-5):
+
+- **Tab[X]_Prompt** (STRING): Selected text part from tab X
+- **Tab[X]_Index** (INT): 0-based index of current part for tab X
+- **Tab[X]_Total** (INT): Total number of parts for tab X
+
+- **Combined_Prompts** (STRING): Combined string of all non-empty selected prompt parts from all tabs, joined with spaces (tab1 + tab2 + ... + tab5 if not empty)
 
 ## Installation
 
@@ -69,9 +77,9 @@ Selects a random part each run, saving the choice for consistency in that run.
 
 ### State Persistence
 
-The node automatically saves its state (current index, direction, etc.) to `dynamic_prompt_selector.state.json` in the same directory. This allows workflows to maintain state across ComfyUI restarts.
+The node automatically saves each tab's state (current index, direction, etc.) to `dynamic_prompt_selector.state.json` in the same directory. This allows workflows to maintain state across ComfyUI restarts.
 
-Each `node_id` has its own saved state, so you can have multiple selectors with different behaviors running independently.
+Each tab gets a unique automatic ID based on `node_id_base` (e.g., "default_tab1"). For multiple node instances, use different `node_id_base` values to avoid state conflicts. All states are stored in a single JSON file per node type.
 
 ## Notes
 
