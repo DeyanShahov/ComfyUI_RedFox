@@ -192,3 +192,40 @@ print(f"[DynamicPromptSelector] Loaded {len(DynamicPromptSelector.NODE_STATES)} 
 
 NODE_CLASS_MAPPINGS = {"DynamicPromptSelector": DynamicPromptSelector}
 NODE_DISPLAY_NAME_MAPPINGS = {"DynamicPromptSelector": "Dynamic Prompt Selector"}
+
+# --- Auto-Update Logic ---
+import subprocess
+
+def check_for_updates():
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    git_dir = os.path.join(script_dir, '.git')
+
+    if not os.path.isdir(git_dir):
+        print("[DynamicPromptSelector] Not a git repository. Skipping update check.")
+        return
+
+    try:
+        print("[DynamicPromptSelector] Checking for updates...")
+
+        # Fetch latest changes from remote
+        subprocess.run(['git', 'fetch'], cwd=script_dir, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Check if local is behind remote
+        status_result = subprocess.run(['git', 'status', '-uno'], cwd=script_dir, check=True, capture_output=True, text=True)
+
+        if 'Your branch is behind' in status_result.stdout:
+            print("[DynamicPromptSelector] New version found. Updating...")
+            pull_result = subprocess.run(['git', 'pull'], cwd=script_dir, check=True, capture_output=True, text=True)
+            print(f"[DynamicPromptSelector] Update complete. Please restart ComfyUI.\n{pull_result.stdout}")
+        else:
+            print("[DynamicPromptSelector] Already up to date.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"[DynamicPromptSelector] Error during update check: {e.stderr.decode('utf-8').strip() if e.stderr else 'Unknown error'}")
+    except FileNotFoundError:
+        print("[DynamicPromptSelector] 'git' command not found. Please ensure Git is installed and in your PATH.")
+    except Exception as e:
+        print(f"[DynamicPromptSelector] An unexpected error occurred: {e}")
+
+# Run the check when the module is loaded
+check_for_updates()
