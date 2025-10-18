@@ -10,6 +10,7 @@ A custom node for ComfyUI that allows you to dynamically select parts from large
 - **State Persistence**: Saves each tab's state to a JSON file so selections continue correctly after ComfyUI restart.
 - **Multi-instance Support**: Each tab can have its own state based on the `node_id_base` setting.
 - **15 Outputs**: Provides selected part, index, and total count for each of the 5 tabs.
+- **Batch Count Support**: Each tab can now specify a batch count to select multiple parts at once (default: 1)
 
 ## Nodes
 
@@ -32,6 +33,7 @@ For each tab (1-5):
   - `random`: Selects random index each run
   - `ping-pong`: Goes back and forth between index 0 and max (for lists > 1 item)
 - **start_index_tab[X]** (INT, default: 0, min: 0): Initial index for this tab
+- **batch_count_tab[X]** (INT, default: 1, min: 1): Number of parts to select at once for this tab (1-10)
 
 #### Outputs
 
@@ -60,6 +62,18 @@ For each tab (1-5):
 5. Set `node_id` to: `my_selector`
 
 Each time you run the workflow, it will output the next part in sequence.
+
+### Batch Count Example
+
+To select multiple parts at once:
+1. Set `prompt_text` to: `portrait of a woman | landscape painting | abstract art | still life`
+2. Set `delimiter` to: `|`
+3. Set `behavior` to: `increment`
+4. Set `start_index` to: `0`
+5. Set `batch_count` to: `3`
+6. Set `node_id` to: `my_selector`
+
+This will select 3 parts at once: "portrait of a woman", "landscape painting", "abstract art"
 
 ### Ping-Pong Behavior
 
