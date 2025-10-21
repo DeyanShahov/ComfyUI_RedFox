@@ -80,7 +80,7 @@ class DynamicPromptSelector:
     def IS_CHANGED(cls, *args, **kwargs):
         return time.time()
 
-    def _select_for_tab(self, prompt_text: str, delimiter: str, behavior: str, start_index: int, node_id: str):
+    def _select_for_tab(self, prompt_text: str, delimiter: str, behavior: str, start_index: int, batch_count: int, node_id: str):
         cls = self.__class__
         node_state = cls.NODE_STATES.get(node_id, {})
         
@@ -105,41 +105,53 @@ class DynamicPromptSelector:
             node_state["current_index"] = start_index
             node_state["initialized"] = True
             node_state["ping_pong_direction"] = 1
+            node_state["run_counter"] = 0
 
         current_index = node_state.get("current_index", start_index)
         ping_pong_direction = node_state.get("ping_pong_direction", 1)
+        run_counter = node_state.get("run_counter", 0)
 
         # Determine the index to use for this run
         run_index = current_index
         if behavior == "fix":
             run_index = start_index
         elif behavior == "random":
+            # For random, we always pick a new one, ignoring batch count
             run_index = random.randint(0, length - 1)
         
         # Clamp run_index to be safe
         run_index = max(0, min(length - 1, run_index))
         current_part = collection[run_index]
 
-        # Determine the index for the *next* run
+        # --- Logic for the *next* run ---
         next_index = run_index
-        if behavior == "increment":
-            next_index = (run_index + 1) % length
-        elif behavior == "decrement":
-            next_index = (run_index - 1 + length) % length
-        elif behavior == "ping-pong" and length > 1:
-            if run_index <= 0 and ping_pong_direction == -1:
-                ping_pong_direction = 1
-            elif run_index >= length - 1 and ping_pong_direction == 1:
-                ping_pong_direction = -1
-            next_index = run_index + ping_pong_direction
-        elif behavior == "random":
-             next_index = random.randint(0, length - 1) # next is also random
-        elif behavior == "fix":
-             next_index = start_index # next is also fixed
+        run_counter += 1
 
+        # For random and fix, the index logic is simple and doesn't need the counter
+        if behavior == "random":
+            next_index = random.randint(0, length - 1)
+            run_counter = 0 # Reset counter for random
+        elif behavior == "fix":
+            next_index = start_index
+            run_counter = 0 # Reset counter for fix
+        # For sequential behaviors, use the counter
+        elif run_counter >= batch_count:
+            run_counter = 0 # Reset counter
+            if behavior == "increment":
+                next_index = (run_index + 1) % length
+            elif behavior == "decrement":
+                next_index = (run_index - 1 + length) % length
+            elif behavior == "ping-pong" and length > 1:
+                if run_index <= 0 and ping_pong_direction == -1:
+                    ping_pong_direction = 1
+                elif run_index >= length - 1 and ping_pong_direction == 1:
+                    ping_pong_direction = -1
+                next_index = run_index + ping_pong_direction
+        
         # Update state for the next run
         node_state["current_index"] = next_index
         node_state["ping_pong_direction"] = ping_pong_direction
+        node_state["run_counter"] = run_counter
         cls.NODE_STATES[node_id] = node_state
 
         return (current_part, run_index, length)
@@ -151,38 +163,33 @@ class DynamicPromptSelector:
                            prompt_text_tab4: str, delimiter_tab4: str, behavior_tab4: str, start_index_tab4: int, batch_count_tab4: int,
                            prompt_text_tab5: str, delimiter_tab5: str, behavior_tab5: str, start_index_tab5: int, batch_count_tab5: int):
 
-        # Calculate total number of repetitions
-        total_reps = batch_count_tab1 * batch_count_tab2 * batch_count_tab3 * batch_count_tab4 * batch_count_tab5
-
-        # --- Get the single result for each tab ---
+        # --- Get the single result for each tab based on its state ---
         tabs_params = [
-            (prompt_text_tab1, delimiter_tab1, behavior_tab1, start_index_tab1, f"{node_id_base}_tab1"),
-            (prompt_text_tab2, delimiter_tab2, behavior_tab2, start_index_tab2, f"{node_id_base}_tab2"),
-            (prompt_text_tab3, delimiter_tab3, behavior_tab3, start_index_tab3, f"{node_id_base}_tab3"),
-            (prompt_text_tab4, delimiter_tab4, behavior_tab4, start_index_tab4, f"{node_id_base}_tab4"),
-            (prompt_text_tab5, delimiter_tab5, behavior_tab5, start_index_tab5, f"{node_id_base}_tab5"),
+            (prompt_text_tab1, delimiter_tab1, behavior_tab1, start_index_tab1, batch_count_tab1, f"{node_id_base}_tab1"),
+            (prompt_text_tab2, delimiter_tab2, behavior_tab2, start_index_tab2, batch_count_tab2, f"{node_id_base}_tab2"),
+            (prompt_text_tab3, delimiter_tab3, behavior_tab3, start_index_tab3, batch_count_tab3, f"{node_id_base}_tab3"),
+            (prompt_text_tab4, delimiter_tab4, behavior_tab4, start_index_tab4, batch_count_tab4, f"{node_id_base}_tab4"),
+            (prompt_text_tab5, delimiter_tab5, behavior_tab5, start_index_tab5, batch_count_tab5, f"{node_id_base}_tab5"),
         ]
         
-        single_results = [self._select_for_tab(*params) for params in tabs_params]
+        results = [self._select_for_tab(*params) for params in tabs_params]
 
-        # --- Assemble the single combined prompt ---
-        prompts_to_combine = [res[0] for res in single_results if res and res[0]]
+        # --- Assemble the single combined prompt for this run ---
+        prompts_to_combine = [res[0] for res in results if res and res[0]]
         combined_prompt_str = " ".join(prompts_to_combine)
 
-        # --- Create output lists by repeating the single result ---
-        output_lists = []
-        for res in single_results:
-            prompt, index, total = res
-            output_lists.append([prompt] * total_reps)
-            output_lists.append([index] * total_reps)
-            output_lists.append([total] * total_reps)
+        # --- Flatten the results into the final tuple for ComfyUI ---
+        final_outputs = []
+        for res in results:
+            final_outputs.extend(res) # res is (prompt, index, total)
         
-        output_lists.append([combined_prompt_str] * total_reps)
+        final_outputs.append(combined_prompt_str)
 
         # Save all states once at the end of the run
         save_all_states(self.__class__.NODE_STATES)
 
-        return tuple(output_lists)
+        # The return signature is a flat tuple of all individual outputs
+        return tuple(final_outputs)
 
 # --- Node Registration ---
 
